@@ -1,0 +1,88 @@
+/* Reset and base styles */
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f4f6fa;
+  color: #222;
+  min-height: 100vh;
+}
+
+/* Utility classes */
+.hidden { display: none !important; }
+.flex { display: flex; }
+.center { justify-content: center; align-items: center; }
+
+/* Modal styles */
+#task-modal {
+  position: fixed;
+  left: 0; top: 0;
+  width: 100vw; height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000;
+}
+#task-modal .modal-bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.3);
+}
+#task-modal .task-form {
+  position: relative;
+  background: #fff;
+  padding: 2em 2em 1em 2em;
+  border-radius: 10px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  align-items: center;
+}
+#task-modal label {
+  display: flex;
+  flex-direction: column;
+  font-size: 1em;
+  margin-bottom: 0.5em;
+}
+#task-modal input, #task-modal textarea, #task-modal select {
+  font-size: 1em;
+  padding: 0.4em 0.7em;
+  border-radius: 5px;
+  border: 1px solid #b0b0b0;
+  margin-top: 0.2em;
+  background: #f7f7fa;
+  transition: border 0.2s;
+}
+#task-modal input:focus, #task-modal textarea:focus, #task-modal select:focus {
+  border: 1.5px solid #04aa6d;
+  outline: none;
+}
+#task-modal .form-actions {
+  display: flex;
+  gap: 1em;
+  margin-top: 1em;
+}
+#task-modal button, .btn {
+  background: #04aa6d;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.5em 1.2em;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+#task-modal button:hover, .btn:hover {
+  background: #037a4a;
+  box-shadow: 0 2px 8px rgba(4,170,109,0.08);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  #task-modal .task-form {
+    padding: 1em 0.5em 1em 0.5em;
+    min-width: 180px;
+  }
+}
