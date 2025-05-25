@@ -316,15 +316,13 @@ function Header(toDo, onListSelect) {
     if (buttonToSelect && selected !== prevSelected) {
       // Remove highlight from any currently selected button
       console.log("Updating highlight for:", buttonToSelect);
-      if (prevSelected)
-        listsContainer
-          .querySelectorAll(".list-button.selected")
-          .forEach((btn) => {
-            btn.classList.remove("selected");
-          });
-      buttonToSelect.classList.add("selected");
+
       onListSelect(selected);
     }
+    listsContainer.querySelectorAll(".list-button.selected").forEach((btn) => {
+      btn.classList.remove("selected");
+    });
+    buttonToSelect?.classList?.add("selected"); // Add highlight to the selected button
   }
   function renderLists(new_selected = null) {
     const sort_by = sortSelect.value;
@@ -529,7 +527,9 @@ function Main(toDo) {
             <h3 class="task-title">${task.name}</h3>
             <div class="task-meta">
                 <p class="task-due">Due: <span>${
-                  task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "N/A"
+                  task.dueDate
+                    ? new Date(task.dueDate).toLocaleDateString()
+                    : "N/A"
                 }</span></p>
                 <p class="task-note-label">Note: <span class="task-note">${
                   task.note
@@ -552,7 +552,9 @@ function Main(toDo) {
                 <button class="toggle-completed">${
                   task.completed ? "✅" : "❌"
                 }</button>
-                <button class="toggle-starred">${task.starred ? "🌟" : "☆"}</button>
+                <button class="toggle-starred">${
+                  task.starred ? "🌟" : "☆"
+                }</button>
               </div>
                 
           `;
