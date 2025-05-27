@@ -214,18 +214,23 @@ function toDo() {
       return toDos;
     },
     addList(name) {
+      console.log(`list id before addition: ${listID}`);
       const list = createTask(listID++, name);
       toDos.push(list);
 
+      console.log(`list id after addition: ${listID}`);
       return Number(listID - 1);
     },
     removeList(id) {
       if (id < 0 || id >= toDos.length) {
         throw new Error("List ID out of bounds");
       }
+      console.log(`Removing list with ID: ${id}`);
+      console.log(`list id before removal: ${listID}`);
       toDos.splice(id, 1);
       updateOrderArray(toDos, toDos.length - 1, toDos.length - 1); // Fixes the gap
-      listID = toDos.length - 1; // Update listID to the last list
+      listID--; // Update listID to the last list
+      console.log(`list id after removal: ${listID}`);
       return this;
     },
     getList(id, ancestoryArray = null) {
@@ -269,7 +274,7 @@ function Header(toDo, onListSelect) {
   const sortDropdown = nav.querySelector(".sort-select");
   const renameBtn = nav.querySelector(".rename-list");
   const removeBtn = nav.querySelector(".remove-list");
-
+  let selectedNode = null; // Track selected node
   // Store their default display styles
   function createListButton(name, userOrder) {
     const button = document.createElement("button");
@@ -281,48 +286,55 @@ function Header(toDo, onListSelect) {
     return button;
   }
   function updateHighlight(new_selected = null) {
-    const prevSelected = selected;
+    // cases: new_selected and old is same => 1) null or out of bounds: select first list. if first list doesnt exist, set null. if prev wasnt null, call onlistselect 3) same: do nothing
+    // diff but new_selected is null or out of bounds => stay on the same if selected is valid, else do above thing
+    // else select the new_selected
+    // simplified as use buttons not numbers directly
+    // so, prev, curr. => (null,null),(a,a),(a,null),(a,b),(null,a)
     // Determine which button to select
-    let buttonToSelect = listsContainer.querySelector(
+    // below uses same logic as above
+    let selectedButton = listsContainer.querySelector(
+      `.list-button[data-id="${selected}"]`
+    );
+    const prevSelectedNode = selectedNode;
+    const prevSelectedButton = selectedButton;
+    let newSelectedButton = listsContainer.querySelector(
       `.list-button[data-id="${new_selected}"]`
     );
-
-    if (
-      new_selected !== null &&
-      new_selected < toDo.toDos.length &&
-      buttonToSelect
-    ) {
+    console.log(
+      `New selected button: ${newSelectedButton?.textContent} (ID: ${new_selected})`
+    );
+    if (newSelectedButton) {
       selected = new_selected;
-    } else {
-      // Fallback: select the first button if available
-      buttonToSelect = listsContainer.querySelector(".list-button");
-      selected =
-        prevSelected ||
-        (buttonToSelect ? Number(buttonToSelect.dataset.id) : null);
+      selectedButton = newSelectedButton;
+      console.log(
+        `Selecting new list: ${selectedButton.textContent} (ID: ${selected})`
+      );
     }
-    console.log("Selected list ID:", selected);
-    console.log("Previous selected ID:", prevSelected);
-    if (selected === null || selected >= toDo.toDos.length) {
+    if (!selectedButton) {
+      // If no valid list is selected, try to select the first list
+      selectedButton = listsContainer.querySelector(".list-button");
+      selected = selectedButton ? Number(selectedButton.dataset.id) : null;
+    }
+    if (!selectedButton) {
+      // If no valid list is selected, hide controls and return
       sortDropdown.classList.add("hidden");
       renameBtn.classList.add("hidden");
       removeBtn.classList.add("hidden");
-      return;
+      console.log("No lists available, hiding controls.");
+      selected = null; // Reset selected if no valid list
+      selectedNode = null;
     } else {
       sortDropdown.classList.remove("hidden");
       renameBtn.classList.remove("hidden");
       removeBtn.classList.remove("hidden");
+      prevSelectedButton?.classList?.remove("selected");
+      selectedButton.classList.add("selected");
+      selectedNode = toDo.getList(selected);
     }
-    // Only update highlight and call onListSelect if selection changed
-    if (buttonToSelect && selected !== prevSelected) {
-      // Remove highlight from any currently selected button
-      console.log("Updating highlight for:", buttonToSelect);
-
-      onListSelect(selected);
+    if (prevSelectedNode !== selectedNode) {
+      onListSelect(selected); //null needed as if last list was removed, buttons will both be null, but update was made
     }
-    listsContainer.querySelectorAll(".list-button.selected").forEach((btn) => {
-      btn.classList.remove("selected");
-    });
-    buttonToSelect?.classList?.add("selected"); // Add highlight to the selected button
   }
   function renderLists(new_selected = null) {
     const sort_by = sortSelect.value;
@@ -340,6 +352,7 @@ function Header(toDo, onListSelect) {
   const listsContainer = nav.querySelector(".lists");
   listsContainer.addEventListener("click", (e) => {
     if (e.target.classList.contains("list-button")) {
+      console.log("List button clicked:", e.target.dataset.id);
       updateHighlight(Number(e.target.dataset.id));
     }
   });
@@ -387,8 +400,7 @@ function Header(toDo, onListSelect) {
         }
         if (confirm("Are you sure you want to delete this list?")) {
           toDo.removeList(selected);
-          selected = null; // Reset selected after removal
-          renderLists();
+          renderLists(selected - 1); // select the previous list after removal
         }
         break;
       }
@@ -476,7 +488,7 @@ function Main(toDo) {
   msg.className = "no-list-selected-msg";
   msg.textContent = "No list selected.";
   let selected = null; // Track selected list ID
-
+  let selectedNode = null; // Track selected node for drag and drop
   //form modal
   const modal = document.createElement("div");
   modal.id = "task-modal";
@@ -591,20 +603,30 @@ function Main(toDo) {
 
   //render both title and tasks
   function renderMain(new_selected = null) {
+    const prevSelectedNode = selectedNode;
     if (new_selected !== null && new_selected < toDo.toDos.length) {
       selected = new_selected;
+      selectedNode = toDo.getList(selected);
     }
     if (selected === null || selected >= toDo.toDos.length) {
       main.classList.add("hidden");
       msg.classList.remove("hidden");
+      selected = null; // Reset selected if no valid list
+      selectedNode = null; // Reset selected node for drag and drop
       return;
     } else {
       main.classList.remove("hidden");
       msg.classList.add("hidden");
     }
-    let list = toDo.getList(selected);
-    renderTitle(list);
-    renderTasks();
+    console.log(
+      `Rendering main for list ID: ${selected} , Node: ${selectedNode?.name}. Previous Node: ${prevSelectedNode?.name}`
+    );
+    //we need node as index can stay the same but the node position can change
+    if (prevSelectedNode !== selectedNode) {
+      let list = toDo.getList(selected);
+      renderTitle(list);
+      renderTasks();
+    }
   }
 
   //form for task add, update
@@ -820,3 +842,4 @@ Page();
 //add styling
 // perhaps use localstorage
 //take priority as input and update for list
+//selected glitch in main?
