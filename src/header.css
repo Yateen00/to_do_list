@@ -52,6 +52,9 @@ nav .rename-list:hover,
 nav .remove-list:hover {
   background: #666;
 }
+nav .list-button.selected:hover{
+  background: #037a4a;
+}
 nav .starred-btn {
   background: #d9b500;
   color: #222;
@@ -61,9 +64,8 @@ nav .starred-btn {
   transition: background 0.2s, color 0.2s, border 0.2s, box-shadow 0.2s;
 }
 nav .starred-btn:hover {
-  background: #fff3bf;
-  color: #997700;
-  border-color: #ffd700;
+  background: #9e840c;
+  border-color: #9e840c;
   box-shadow: 0 2px 8px rgba(191, 161, 0, 0.13);
 }
 
@@ -76,11 +78,6 @@ nav .add-list:hover {
   background: #037a4a;
 }
 
-nav .rename-list,
-nav .remove-list {
-  background: #e0e0e0;
-  color: #222;
-}
 nav .rename-list:hover,
 nav .remove-list:hover {
   background: #bdbdbd;
@@ -159,7 +156,7 @@ nav .list-controls {
 
 nav .rename-list,
 nav .remove-list {
-  background: #e0e0e0;
+  background: #fff;
   color: #222;
   border: none;
   border-radius: 5px;

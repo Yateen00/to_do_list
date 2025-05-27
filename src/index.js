@@ -63,7 +63,20 @@ function sortBasedOn(arr, key, recur = true) {
 //     //     (task) => task.starred || task.subtasks.some((sub) => sub.starred)
 //     // );
 // }
-function createTask(id, name, note = "", priority = 0, dueDate = null) {
+
+// page will attach it to todo
+let saveAllLists = () => {
+  console.warn("saveAllLists called before initialization!");
+};
+
+function createTask(
+  id,
+  name,
+  note = "",
+  priority = 0,
+  dueDate = null,
+  subtasks_data = []
+) {
   let userOrder = Number(id);
   let starOrder = userOrder;
   let completed = false;
@@ -72,8 +85,17 @@ function createTask(id, name, note = "", priority = 0, dueDate = null) {
   dueDate = dueDate ? new Date(dueDate) : null;
   let starredAt = null;
   let updatedAt = new Date();
-  const subtasks = [];
-  let taskIndex = 0;
+  const subtasks = subtasks_data.map((subtask) =>
+    createTask(
+      subtask.userOrder,
+      subtask.name,
+      subtask.note,
+      subtask.priority,
+      subtask.dueDate,
+      subtask.subtasks || []
+    )
+  );
+  let taskIndex = subtasks.length; // Start taskIndex from the length of subtasks
   return {
     name,
     get userOrder() {
@@ -113,36 +135,43 @@ function createTask(id, name, note = "", priority = 0, dueDate = null) {
       starred = !starred;
       starredAt = starred ? new Date() : null;
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     toggleCompleted() {
       completed = !completed;
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     updateUserOrder(newOrder) {
       userOrder = newOrder;
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     updateStarOrder(newOrder) {
       starOrder = newOrder;
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     updateDueDate(newDate) {
       dueDate = newDate ? new Date(newDate) : null;
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     updatePriority(newPriority) {
       priority = newPriority;
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     updateNote(newNote) {
       note = newNote;
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     addSubtask(name, note, priority = 0, dueDate = null) {
@@ -150,6 +179,7 @@ function createTask(id, name, note = "", priority = 0, dueDate = null) {
       const subtask = createTask(subid, name, note, priority, dueDate);
       subtasks.push(subtask);
       updatedAt = new Date();
+      saveAllLists();
       return subtask;
     },
     removeSubtask(index) {
@@ -159,12 +189,14 @@ function createTask(id, name, note = "", priority = 0, dueDate = null) {
       }
       subtasks.splice(index, 1);
       updateOrderArray(subtasks, subtasks.length - 1, subtasks.length - 1); //fixes the gap
-      taskIndex = subtasks.length - 1; // Update childIndex to the last subtask
+      taskIndex--; // Update childIndex to the last subtask
+      saveAllLists();
       return this;
     },
     removeAllSubtasks() {
       subtasks.clear();
       updatedAt = new Date();
+      saveAllLists();
       return this;
     },
     getSubtask(index) {
@@ -185,8 +217,17 @@ const sortKeyMap = {
 };
 
 // --- To Do Factory ---
-function toDo() {
-  const toDos = [];
+function toDo(todos_data = []) {
+  const toDos = todos_data.map((todo) =>
+    createTask(
+      todo.userOrder,
+      todo.name,
+      todo.note,
+      todo.priority,
+      todo.dueDate,
+      todo.subtasks || []
+    )
+  );
   //structure of toDos:
   // [
   //   taskObject={
@@ -197,7 +238,7 @@ function toDo() {
   //   taskObject, // List 2
   //   ]
   // so basically array of tree, where root node is the list and children are tasks
-  let listID = 0;
+  let listID = toDos.length; // Start listID from the length of toDos
   function findParentTask(parentTask, ids) {
     //given a list of topmost tasks and a ids array, where ids[0] is child task id and ids[1] is parent task id, find the parent task. if ids[0] is a parent task, return parentTask
     //id= UserOrder of the task= index in the tasks array
@@ -219,6 +260,7 @@ function toDo() {
       toDos.push(list);
 
       console.log(`list id after addition: ${listID}`);
+      saveAllLists();
       return Number(listID - 1);
     },
     removeList(id) {
@@ -230,6 +272,7 @@ function toDo() {
       toDos.splice(id, 1);
       updateOrderArray(toDos, toDos.length - 1, toDos.length - 1); // Fixes the gap
       listID--; // Update listID to the last list
+      saveAllLists();
       console.log(`list id after removal: ${listID}`);
       return this;
     },
@@ -244,7 +287,11 @@ function toDo() {
 }
 
 // --- Header (List Navigation) ---
-function Header(toDo, onListSelect) {
+function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
+  let selected = null;
+  console.log(
+    `Header initialized with selected: ${selected}, sortBy: ${sortBy}`
+  );
   const nav = document.createElement("nav");
   nav.innerHTML = `
       <ul>
@@ -267,15 +314,23 @@ function Header(toDo, onListSelect) {
         </ul>
     `;
 
-  let selected = null; // Track selected list ID
   /* Header helper functions */
   document.body.prepend(nav);
   // After creating nav and setting innerHTML:
   const sortDropdown = nav.querySelector(".sort-select");
   const renameBtn = nav.querySelector(".rename-list");
   const removeBtn = nav.querySelector(".remove-list");
-  let selectedNode = null; // Track selected node
-  // Store their default display styles
+  let selectedNode = selected !== null ? toDo.getList(selected) : null;
+  nav.querySelector("select").value = sortBy; // Set initial sort value
+  // for localstorage
+  function update() {
+    console.log(
+      `Updating localStorage with selected: ${selected} and sortBy: ${sortDropdown.value}`
+    );
+    localStorage.setItem("selectedListID", selected);
+    localStorage.setItem("sortByHeader", sortDropdown.value);
+  }
+
   function createListButton(name, userOrder) {
     const button = document.createElement("button");
     button.textContent = name;
@@ -300,6 +355,9 @@ function Header(toDo, onListSelect) {
     const prevSelectedButton = selectedButton;
     let newSelectedButton = listsContainer.querySelector(
       `.list-button[data-id="${new_selected}"]`
+    );
+    console.log(
+      `old button: ${prevSelectedButton?.textContent} (ID: ${selected})`
     );
     console.log(
       `New selected button: ${newSelectedButton?.textContent} (ID: ${new_selected})`
@@ -334,6 +392,7 @@ function Header(toDo, onListSelect) {
     }
     if (prevSelectedNode !== selectedNode) {
       onListSelect(selected); //null needed as if last list was removed, buttons will both be null, but update was made
+      update(); // Update localStorage with the new selected list ID and sort option
     }
   }
   function renderLists(new_selected = null) {
@@ -344,6 +403,7 @@ function Header(toDo, onListSelect) {
       listsContainer.appendChild(createListButton(list.name, list.userOrder));
     });
     updateHighlight(new_selected);
+    update(); // Update localStorage with the new list order
   }
 
   /*Header listeners */
@@ -460,10 +520,12 @@ function Header(toDo, onListSelect) {
   });
 
   //initial render
-  renderLists();
+  renderLists(_selected);
   return nav;
 }
-function Main(toDo) {
+function Main(toDo, _selected = null, sortBy = "Date Created") {
+  let selected= null; //not using directly as leads to visual bugs coz reloading only happen on change
+  console.log(`Main initialized with selected: ${selected}, sortBy: ${sortBy}`);
   // Create main content area and header
   const main = document.createElement("main");
   main.innerHTML = `
@@ -487,8 +549,8 @@ function Main(toDo) {
   main.after(msg);
   msg.className = "no-list-selected-msg";
   msg.textContent = "No list selected.";
-  let selected = null; // Track selected list ID
-  let selectedNode = null; // Track selected node for drag and drop
+
+  let selectedNode = selected !== null ? toDo.getList(selected) : null;
   //form modal
   const modal = document.createElement("div");
   modal.id = "task-modal";
@@ -516,6 +578,11 @@ function Main(toDo) {
   modal.querySelector(".cancel-btn").onclick = () =>
     (modal.style.display = "none");
 
+  //save to locastorage
+  function update() {
+    localStorage.setItem("selectedListID", selected);
+    localStorage.setItem("sortByMain", sortSelect.value);
+  }
   //render title
   const titleElement = main.querySelector(".list-title");
   function renderTitle(list) {
@@ -599,6 +666,7 @@ function Main(toDo) {
       });
     }
     renderTasksRecursiveHelper(list, tasksSection);
+    update();
   }
 
   //render both title and tasks
@@ -627,6 +695,7 @@ function Main(toDo) {
       renderTitle(list);
       renderTasks();
     }
+    update();
   }
 
   //form for task add, update
@@ -668,6 +737,7 @@ function Main(toDo) {
 
   // sort button
   const sortSelect = main.querySelector(".sort-select");
+  sortSelect.value = sortBy; // Set initial sort value
   sortSelect.onchange = () => {
     renderTasks();
   };
@@ -821,7 +891,7 @@ function Main(toDo) {
       }
     }
   });
-  renderMain(); // Initial render of main content
+  renderMain(_selected); // Initial render of main content
   //send renderMain to Header
   return {
     renderMain,
@@ -830,16 +900,24 @@ function Main(toDo) {
 }
 
 function Page() {
-  const allLists = toDo();
-  const { renderMain } = Main(allLists);
+  const todos_data = JSON.parse(localStorage.getItem("toDos")) || [];
+  const selected = JSON.parse(localStorage.getItem("selectedListID")) || null;
+  const sortByMain = localStorage.getItem("sortByMain") || "Date Created";
+  const sortByHeader = localStorage.getItem("sortByHeader") || "Date Created";
+  console.log(`loaded things:
+    selected: ${selected}, sortByMain: ${sortByMain}, sortByHeader: ${sortByHeader}`);
+  const allLists = toDo(todos_data);
 
-  Header(allLists, renderMain);
+  const { renderMain } = Main(allLists, selected, sortByMain);
+
+  saveAllLists = () => {
+    localStorage.setItem("toDos", JSON.stringify(allLists.toDos));
+  };
+
+  Header(allLists, renderMain, selected, sortByHeader);
 }
 Page();
 
 //left: starred page
-//understand drag and drop working exactly
-//add styling
 // perhaps use localstorage
-//take priority as input and update for list
-//selected glitch in main?
+//take priority as input and update for list . not done as kinda wierd to see. perhaps if i move it to left side instead of header.
