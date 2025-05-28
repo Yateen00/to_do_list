@@ -425,8 +425,10 @@ function Header(
 
       if (toDo.toDos.length === 0) {
         sortDropdown.classList.add("hidden");
+        sortToggleButton.classList.add("hidden");
       } else {
         sortDropdown.classList.remove("hidden");
+        sortToggleButton.classList.remove("hidden");
       }
       renameBtn.classList.add("hidden");
       removeBtn.classList.add("hidden");
@@ -467,6 +469,7 @@ function Header(
     if (!selectedButton) {
       // If no valid list is selected, hide controls and return
       sortDropdown.classList.add("hidden");
+      sortToggleButton.classList.add("hidden");
       renameBtn.classList.add("hidden");
       removeBtn.classList.add("hidden");
       console.log("No lists available, hiding controls.");
@@ -475,6 +478,7 @@ function Header(
     } else {
       sortDropdown.classList.remove("hidden");
       renameBtn.classList.remove("hidden");
+      sortToggleButton.classList.remove("hidden");
       removeBtn.classList.remove("hidden");
       prevSelectedButton?.classList?.remove("selected");
       selectedButton.classList.add("selected");
