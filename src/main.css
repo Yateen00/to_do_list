@@ -158,10 +158,12 @@ main .sort-select option {
 }
 
 /* Drag and drop */
-.task.dragging {
+.task.dragging,
+.list-container.dragging {
   opacity: 0.5;
 }
-.task.drag-over {
+.task.drag-over,
+.list-container.drag-over {
   outline: 2px dashed #0078d7;
 }
 

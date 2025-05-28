@@ -14,13 +14,15 @@ nav ul {
   padding: 0 1em;
   gap: 10px;
 }
-
+ul :nth-child(2){
+  margin-right: auto;
+}
 nav .lists {
-  display: flex;
   gap: 0.5em;
   overflow-x: auto;
   flex: 1 1 auto;
   min-width: 220px;
+  
 }
 
 nav .list-button,
@@ -40,11 +42,17 @@ nav .remove-list {
   font-weight: 500;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
-nav .list-button.selected,
-nav .starred-btn.selected {
+nav .list-button.selected{
   background: #04aa6d;
   color: #fff;
   font-weight: bold;
+}
+nav .starred-btn.selected {
+  background: #d9b500;
+  color: #222;
+  font-weight: bold;
+  border: 1.5px solid #ffcc00;
+  box-shadow: 0 1px 4px rgba(191, 161, 0, 0.07);
 }
 nav .list-button:hover,
 nav .add-list:hover,
@@ -52,7 +60,7 @@ nav .rename-list:hover,
 nav .remove-list:hover {
   background: #666;
 }
-nav .list-button.selected:hover{
+nav .list-button.selected:hover {
   background: #037a4a;
 }
 nav .starred-btn {
@@ -148,7 +156,6 @@ nav .lists::-webkit-scrollbar-thumb {
 
 /* Make the controls always at the right */
 nav .list-controls {
-  margin-left: auto;
   display: flex;
   gap: 0.5em;
   align-items: center;

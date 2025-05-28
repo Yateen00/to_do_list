@@ -3,7 +3,12 @@ import "./header.css";
 import "./main.css";
 import "./common.css";
 //index in array= userOrder =id
-function updateOrderArray(arr, ogindex, newindex) {
+function updateOrderArray(
+  arr,
+  ogindex,
+  newindex,
+  updateOrderCallback = (task, index) => task.updateUserOrder(index)
+) {
   //Update the userOrder or starOrder of tasks in the array
   //ogindex is the tasks current inded or userOrder, newindex is the new index or userOrder after which the task should be placed
   //if -1, it is first element. if > arr.length, it is last element
@@ -19,50 +24,91 @@ function updateOrderArray(arr, ogindex, newindex) {
   arr.splice(ogindex, 1); // Remove the task from its old position
   arr.splice(newindex, 0, task); // Insert it at the new position
   arr.forEach((task, index) => {
-    task.updateUserOrder(index); // Update userOrder for all tasks
+    updateOrderCallback(task, index); // Update userOrder for all tasks
   });
   return arr;
 }
 
-function sortBasedOn(arr, key, recur = true) {
+function updateStarOrderArray(arr, ogindex, newindex) {
+  console.log(`initial indexes`);
+  arr.forEach((task, index) => {
+    console.log(` og array task: ${task.name}, ogindex: ${index}`);
+  });
+  const sortedArray = sortBasedOn(arr, sortKeyMap["Star"], false); // Sort the array by "Star"
+  sortedArray.forEach((task, index) => {
+    console.log(`after sorting task: ${task.name}, newindex: ${index}`);
+  });
+  ogindex = arr[ogindex]?.starOrder;
+  newindex = arr[newindex]?.starOrder;
+  if (ogindex === undefined || newindex === undefined) {
+    console.warn("Invalid ogindex or newindex for starOrder update.");
+    return sortedArray; // If ogindex or newindex is invalid, return the sorted array
+  }
+  updateOrderArray(sortedArray, ogindex, newindex, (task, index) =>
+    task.updateStarOrder(index)
+  );
+  console.log(`updated indexes`);
+  sortedArray.forEach((task, index) => {
+    console.log(` updated array task: ${task.name}, newindex: ${index}`);
+  });
+  return sortedArray;
+}
+function sortBasedOn(arr, key, recur = true, ascending = true) {
   // Returns a sorted deep copy of the array and its children based on the given key
   return arr
     .slice()
     .sort((a, b) => {
-      if (key === "userOrder" || key === "starOrder") {
-        return a[key] - b[key];
+      let comparison = 0;
+
+      if (key === "starOrder") {
+        // Prioritize starred elements and push non-starred elements to the end
+        if (a.starred - b.starred !== 0) {
+          comparison = b.starred - a.starred; // Starred elements come first
+        } else {
+          comparison = a[key] - b[key]; // Sort by starOrder if both are starred or not starred
+        }
+      } else if (key === "userOrder" || key === "priority") {
+        comparison = a[key] - b[key];
       } else if (key === "name") {
-        return a.name.localeCompare(b.name);
+        comparison = a.name.localeCompare(b.name);
       } else if (key === "createdAt" || key === "updatedAt") {
-        return new Date(a[key]) - new Date(b[key]);
+        comparison = new Date(a[key]) - new Date(b[key]);
       } else if (key === "dueDate") {
-        return (
+        comparison =
           (a.dueDate ? new Date(a.dueDate) : 0) -
-          (b.dueDate ? new Date(b.dueDate) : 0)
-        );
-      } else if (key === "priority") {
-        return a.priority - b.priority;
+          (b.dueDate ? new Date(b.dueDate) : 0);
       }
-      return 0;
+
+      // Reverse comparison for descending order (except for starOrder)
+      return key === "starOrder"
+        ? comparison
+        : ascending
+        ? comparison
+        : -comparison;
     })
     .map((task) => {
       if (recur && Array.isArray(task.subtasks) && task.subtasks.length > 0) {
         // Recursively sort subtasks if recur is true
         return {
           ...task,
-          subtasks: sortBasedOn(task.subtasks, key, true),
+          subtasks: sortBasedOn(task.subtasks, key, true, ascending),
         };
       }
       return task;
     });
 }
-// function filterStarred(tasks) {
-//     // Returns a new array containing only starred tasks and their parents and subtasks but not siblings
-//     throw new Error("Not implemented");
-//     // return tasks.filter(
-//     //     (task) => task.starred || task.subtasks.some((sub) => sub.starred)
-//     // );
-// }
+function filterStarred(tasks) {
+  return tasks
+    .filter(
+      (task) =>
+        task.starred || // Include starred tasks
+        (task.subtasks && task.subtasks.some((sub) => sub.starred)) // Include parents of starred subtasks
+    )
+    .map((task) => ({
+      ...task,
+      subtasks: filterStarred(task.subtasks || []), // Recursively filter subtasks
+    }));
+}
 
 // page will attach it to todo
 let saveAllLists = () => {
@@ -75,27 +121,36 @@ function createTask(
   note = "",
   priority = 0,
   dueDate = null,
-  subtasks_data = []
+  starred = false,
+  data = {}
 ) {
-  let userOrder = Number(id);
-  let starOrder = userOrder;
-  let completed = false;
-  let starred = false;
-  let createdAt = new Date();
-  dueDate = dueDate ? new Date(dueDate) : null;
-  let starredAt = null;
-  let updatedAt = new Date();
-  const subtasks = subtasks_data.map((subtask) =>
-    createTask(
-      subtask.userOrder,
-      subtask.name,
-      subtask.note,
-      subtask.priority,
-      subtask.dueDate,
-      subtask.subtasks || []
-    )
-  );
-  let taskIndex = subtasks.length; // Start taskIndex from the length of subtasks
+  name = data["name"] || name;
+  id = data["id"] || Number(id);
+  let userOrder = data["userOrder"] || Number(id);
+  let starOrder = data["starOrder"] || userOrder;
+  let completed = data["completed"] || false;
+  starred = data["starred"] || starred || false;
+  let createdAt = data["createdAt"] ? new Date(data["createdAt"]) : new Date();
+  dueDate = data["dueDate"]
+    ? new Date(data["dueDate"])
+    : dueDate
+    ? new Date(dueDate)
+    : null;
+  let starredAt = data["starredAt"] ? new Date(data["starredAt"]) : null;
+  let updatedAt = data["updatedAt"] ? new Date(data["updatedAt"]) : new Date();
+  const subtasks =
+    data["subtasks"]?.map((subtask) =>
+      createTask(
+        subtask.userOrder,
+        subtask.name,
+        subtask.note,
+        subtask.priority,
+        subtask.dueDate,
+        subtask.starred,
+        subtask
+      )
+    ) || [];
+  let taskIndex = data["taskIndex"] || subtasks.length; // Start taskIndex from the length of subtasks
   return {
     name,
     get userOrder() {
@@ -174,10 +229,11 @@ function createTask(
       saveAllLists();
       return this;
     },
-    addSubtask(name, note, priority = 0, dueDate = null) {
+    addSubtask(name, note, priority = 0, dueDate = null, starred = false) {
       const subid = Number(taskIndex++);
-      const subtask = createTask(subid, name, note, priority, dueDate);
+      const subtask = createTask(subid, name, note, priority, dueDate, starred);
       subtasks.push(subtask);
+      console.log(`added task is starred: ${subtask.starred}`);
       updatedAt = new Date();
       saveAllLists();
       return subtask;
@@ -188,8 +244,10 @@ function createTask(
         throw new Error("Subtask index out of bounds");
       }
       subtasks.splice(index, 1);
-      updateOrderArray(subtasks, subtasks.length - 1, subtasks.length - 1); //fixes the gap
-      taskIndex--; // Update childIndex to the last subtask
+      taskIndex--; // Update childIndex to reflect new length
+      updateOrderArray(subtasks, taskIndex - 1, taskIndex - 1); //fixes the gap
+      updateStarOrderArray(subtasks, taskIndex - 1, taskIndex - 1); // Fixes the gap in starOrder
+
       saveAllLists();
       return this;
     },
@@ -213,7 +271,7 @@ const sortKeyMap = {
   "Due Date": "dueDate",
   "Starred At": "starredAt",
   Priority: "priority",
-  "Star Order": "starOrder",
+  Star: "starOrder",
 };
 
 // --- To Do Factory ---
@@ -225,7 +283,8 @@ function toDo(todos_data = []) {
       todo.note,
       todo.priority,
       todo.dueDate,
-      todo.subtasks || []
+      todo.starred,
+      todo
     )
   );
   //structure of toDos:
@@ -287,10 +346,17 @@ function toDo(todos_data = []) {
 }
 
 // --- Header (List Navigation) ---
-function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
+function Header(
+  toDo,
+  onListSelect,
+  _selected = null,
+  sortBy = "Date Created",
+  _starred = false
+) {
+  let starred = false;
   let selected = null;
   console.log(
-    `Header initialized with selected: ${selected}, sortBy: ${sortBy}`
+    `Header initialized with selected: ${selected}, sortBy: ${sortBy}, starred: ${_starred}`
   );
   const nav = document.createElement("nav");
   nav.innerHTML = `
@@ -329,6 +395,7 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
     );
     localStorage.setItem("selectedListID", selected);
     localStorage.setItem("sortByHeader", sortDropdown.value);
+    localStorage.setItem("starred", starred);
   }
 
   function createListButton(name, userOrder) {
@@ -340,7 +407,7 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
     // button.style.order = userOrder; // Set the order based on userOrder, not really needed as we are appending in order
     return button;
   }
-  function updateHighlight(new_selected = null) {
+  function updateHighlight(new_selected = null, star = false) {
     // cases: new_selected and old is same => 1) null or out of bounds: select first list. if first list doesnt exist, set null. if prev wasnt null, call onlistselect 3) same: do nothing
     // diff but new_selected is null or out of bounds => stay on the same if selected is valid, else do above thing
     // else select the new_selected
@@ -348,6 +415,26 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
     // so, prev, curr. => (null,null),(a,a),(a,null),(a,b),(null,a)
     // Determine which button to select
     // below uses same logic as above
+    if (star) {
+      console.log("Starred mode activated, showing starred tasks.");
+      selected = null; // Reset selected if in starred mode
+      selectedNode = null; // Reset selected node
+
+      if (toDo.toDos.length === 0) {
+        sortDropdown.classList.add("hidden");
+      } else {
+        sortDropdown.classList.remove("hidden");
+      }
+      renameBtn.classList.add("hidden");
+      removeBtn.classList.add("hidden");
+      if (starred !== star) {
+        starred = true;
+        onListSelect(selected, starred);
+        update();
+      }
+      return;
+    }
+    starred = false; // Reset starred mode
     let selectedButton = listsContainer.querySelector(
       `.list-button[data-id="${selected}"]`
     );
@@ -395,14 +482,14 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
       update(); // Update localStorage with the new selected list ID and sort option
     }
   }
-  function renderLists(new_selected = null) {
+  function renderLists(new_selected = null, star = false) {
     const sort_by = sortSelect.value;
     listsContainer.innerHTML = "";
     const arr = sortBasedOn(toDo.toDos, sortKeyMap[sort_by], false);
     arr.forEach((list) => {
       listsContainer.appendChild(createListButton(list.name, list.userOrder));
     });
-    updateHighlight(new_selected);
+    updateHighlight(new_selected, star);
     update(); // Update localStorage with the new list order
   }
 
@@ -420,7 +507,7 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
   // sort lists
   const sortSelect = nav.querySelector(".sort-select");
   sortSelect.onchange = () => {
-    renderLists();
+    renderLists(selected, starred);
   };
 
   // Handle Add, Rename, Remove List
@@ -436,7 +523,7 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
         const listName = prompt("Enter list name");
         if (listName) {
           toDo.addList(listName);
-          renderLists();
+          renderLists(selected, starred);
         }
         break;
       }
@@ -449,7 +536,7 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
         const newName = prompt("Enter new list name", currentList.name);
         if (newName && newName !== currentList.name) {
           currentList.name = newName;
-          renderLists();
+          renderLists(selected, starred);
         }
         break;
       }
@@ -460,7 +547,7 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
         }
         if (confirm("Are you sure you want to delete this list?")) {
           toDo.removeList(selected);
-          renderLists(selected - 1); // select the previous list after removal
+          renderLists(selected - 1, starred); // select the previous list after removal
         }
         break;
       }
@@ -514,18 +601,30 @@ function Header(toDo, onListSelect, _selected = null, sortBy = "Date Created") {
     const arr = toDo.toDos;
     if (draggedListId !== -1 && toId !== -1 && draggedListId !== toId) {
       updateOrderArray(arr, draggedListId, toId);
-      renderLists(selected);
+      renderLists(selected, starred); // Re-render lists after reordering
     }
     draggedListId = null;
   });
-
+  const starredButton = nav.querySelector(".starred-btn");
+  starredButton.addEventListener("click", () => {
+    console.log("Navigating to Starred Page");
+    renderLists(null, true); // Call renderMain in "Starred Page" mode
+  });
   //initial render
-  renderLists(_selected);
+  renderLists(_selected, _starred);
   return nav;
 }
-function Main(toDo, _selected = null, sortBy = "Date Created") {
-  let selected= null; //not using directly as leads to visual bugs coz reloading only happen on change
-  console.log(`Main initialized with selected: ${selected}, sortBy: ${sortBy}`);
+function Main(
+  toDo,
+  _selected = null,
+  sortBy = "Date Created",
+  _starredMode = false
+) {
+  let selected = null; //not using directly as leads to visual bugs coz reloading only happen on change
+  let starredMode = false;
+  console.log(
+    `Main initialized with selected: ${_selected}, sortBy: ${sortBy}, starredMode: ${_starredMode}`
+  );
   // Create main content area and header
   const main = document.createElement("main");
   main.innerHTML = `
@@ -582,14 +681,10 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
   function update() {
     localStorage.setItem("selectedListID", selected);
     localStorage.setItem("sortByMain", sortSelect.value);
+    localStorage.setItem("starred", starredMode);
   }
   //render title
   const titleElement = main.querySelector(".list-title");
-  function renderTitle(list) {
-    titleElement.textContent = list.name;
-    titleElement.dataset.id = list.userOrder; // Use userOrder as the ID
-  }
-
   // hide if no list selected and add or remove <p>
   // render tasks section and their heading
   function generateTaskElement(task) {
@@ -642,15 +737,23 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
 
   //render tasks
   function renderTasks() {
-    const sort_by = sortSelect.value;
-    var list = toDo.getList(selected).subtasks;
+    let sort_by = sortSelect.value;
+    var list = starredMode
+      ? filterStarred(toDo.toDos)
+      : toDo.getList(selected).subtasks;
+    console.log(
+      `Rendering tasks for list ID: ${selected}, Starred Mode: ${starredMode}`
+    );
+    console.log("the list is:");
+    console.log(toDo.toDos);
+    console.log(filterStarred(toDo.toDos));
     tasksSection.innerHTML = ""; // Clear previous tasks
     if (list.length === 0) {
+      console.log("No tasks available to render.");
       tasksSection.innerHTML =
         '<p class="no-list-selected-msg">No tasks available</p>';
       return;
     }
-    list = sortBasedOn(list, sortKeyMap[sort_by], true);
     function renderTasksRecursiveHelper(arr, parentContainer) {
       arr.forEach((task) => {
         const taskElement = generateTaskElement(task);
@@ -665,12 +768,87 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
         parentContainer.appendChild(taskElement);
       });
     }
-    renderTasksRecursiveHelper(list, tasksSection);
+    if (!starredMode) {
+      list = sortBasedOn(list, sortKeyMap[sort_by], true);
+
+      renderTasksRecursiveHelper(list, tasksSection);
+    } else {
+      sort_by = sort_by === "Custom" ? "Star" : sort_by; // Use starOrder for Custom sort in starred mode
+
+      const transformedList = list.map((sublist) => ({
+        ...sublist, // Keep all other properties of the top-level task
+        subtasks: sortBasedOn(sublist.subtasks, sortKeyMap[sort_by], true), // Sort the subtasks
+      }));
+
+      console.log("Transformed list with sorted subtasks:", transformedList);
+
+      if (sort_by !== "Star") {
+        // Step 2: Temporarily swap the values of the given key with the value of the 0th child
+        transformedList.forEach((sublist) => {
+          if (sublist.subtasks.length > 0) {
+            let temp = sublist[sortKeyMap[sort_by]];
+            sublist[sortKeyMap[sort_by]] =
+              sublist.subtasks[0][sortKeyMap[sort_by]];
+            sublist.subtasks[0][sortKeyMap[sort_by]] = temp;
+          }
+        });
+      }
+
+      // Step 3: Sort the list using sortBasedOn with recursion turned off
+      const sortedList = sortBasedOn(
+        transformedList,
+        sortKeyMap[sort_by],
+        false
+      );
+
+      if (sort_by !== "Star") {
+        // Step 4: Swap the values back to their original state
+        sortedList.forEach((sublist) => {
+          if (sublist.subtasks.length > 0) {
+            let temp = sublist[sortKeyMap[sort_by]];
+            sublist[sortKeyMap[sort_by]] =
+              sublist.subtasks[0][sortKeyMap[sort_by]];
+            sublist.subtasks[0][sortKeyMap[sort_by]] = temp;
+          }
+        });
+      }
+
+      console.log("Final sorted list:", sortedList);
+
+      sortedList.forEach((lis) => {
+        const listContainer = document.createElement("div");
+        listContainer.className = "list-container";
+        listContainer.dataset.id = lis.userOrder; // Use userOrder as the ID
+        listContainer.innerHTML = `<h2>${lis.name}</h2>
+          <button class="add-task">Add Task</button>
+        `;
+        listContainer.draggable = true; // Make the list container draggable
+
+        renderTasksRecursiveHelper(lis.subtasks, listContainer);
+        tasksSection.appendChild(listContainer);
+      });
+    }
     update();
   }
 
   //render both title and tasks
-  function renderMain(new_selected = null) {
+  function renderMain(new_selected = null, starred = false) {
+    if (starred) {
+      selectedNode = null;
+      selected = null; // Reset selected if in starred mode
+      main.classList.remove("hidden");
+      msg.classList.add("hidden");
+      addTaskButton.classList.add("hidden"); // Hide "Add Task" button in "Starred Page" mode
+      titleElement.textContent = "Starred Tasks";
+      titleElement.dataset.id = null;
+      if (starred !== starredMode) {
+        starredMode = true;
+        renderTasks();
+      }
+      return;
+    }
+    starredMode = false; // Reset starred mode
+    addTaskButton.classList.remove("hidden");
     const prevSelectedNode = selectedNode;
     if (new_selected !== null && new_selected < toDo.toDos.length) {
       selected = new_selected;
@@ -692,7 +870,8 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
     //we need node as index can stay the same but the node position can change
     if (prevSelectedNode !== selectedNode) {
       let list = toDo.getList(selected);
-      renderTitle(list);
+      titleElement.textContent = list.name;
+      titleElement.dataset.id = list.userOrder; // Use userOrder as the ID
       renderTasks();
     }
     update();
@@ -743,7 +922,7 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
   };
 
   // Add task button top level
-  const addTaskButton = main.querySelector(".add-task");
+  const addTaskButton = main.querySelector(".task-controls-bar .add-task");
   addTaskButton.onclick = () => {
     showTaskForm({
       title: "Add Task",
@@ -758,24 +937,45 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
   const tasksSection = main.querySelector(".tasks-section");
   tasksSection.addEventListener("click", (e) => {
     const taskElement = e.target.closest(".task");
-    if (!taskElement) return;
-    const btnClass = [
-      "remove-task",
-      "update-task",
-      "toggle-completed",
-      "toggle-starred",
-      "add-subtask",
-    ].find((cls) => e.target.classList.contains(cls));
+    const containerButton = starredMode
+      ? e.target.closest(".list-container")
+      : null;
+
+    if (starredMode && !containerButton) return;
+
+    const index = containerButton
+      ? Number(containerButton.dataset.id)
+      : selected;
+
+    const btnClass = taskElement
+      ? [
+          "remove-task",
+          "update-task",
+          "toggle-completed",
+          "toggle-starred",
+          "add-subtask",
+        ].find((cls) => e.target.classList.contains(cls))
+      : starredMode && e.target.classList.contains("add-task")
+      ? "add-task"
+      : null;
+
     if (!btnClass) return;
-    const taskId = Number(taskElement.dataset.id);
-    const ancestryArray = getTaskAncestryArray(taskElement);
-    const list = toDo.getList(selected, ancestryArray);
-    console.log("Task ID:", taskId);
-    console.log("Task Ancestry Array:", ancestryArray);
 
-    const task = list.getSubtask(taskId);
-    console.log("Task:", task);
+    console.log(`Button clicked: ${btnClass}`);
 
+    const taskId = taskElement ? Number(taskElement.dataset.id) : null;
+    const ancestryArray = taskElement
+      ? getTaskAncestryArray(taskElement)
+      : null;
+
+    const list =
+      !starredMode || ancestryArray ? toDo.getList(index, ancestryArray) : null;
+
+    const task = list
+      ? list.getSubtask(taskId)
+      : starredMode
+      ? toDo.getList(index)
+      : null;
     switch (btnClass) {
       case "remove-task":
         list.removeSubtask(taskId);
@@ -809,11 +1009,13 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
         task.toggleStarred();
         renderTasks();
         break;
+      case "add-task": //bubble down
       case "add-subtask":
         showTaskForm({
           title: "Add Subtask",
           onSave: ({ name, note, priority, dueDate }) => {
-            task.addSubtask(name, note, priority, dueDate);
+            console.log(`added subtask is starred: ${starredMode}`);
+            task.addSubtask(name, note, priority, dueDate, starredMode);
             renderTasks();
           },
         });
@@ -825,19 +1027,33 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
   //only need arr,ogindex, newindex and call updateOrderArray and render
   tasksSection.addEventListener("dragstart", (e) => {
     const taskElement = e.target.closest(".task");
-    if (!taskElement) return;
+    const containerButton = starredMode
+      ? e.target.closest(".list-container")
+      : null;
+
+    if (starredMode && !containerButton) return;
+    if (!starredMode && !taskElement) return;
+
+    // Determine source index
+    const sourceToDoIdx = containerButton
+      ? Number(containerButton.dataset.id)
+      : selected;
     // Store ancestry and index for the dragged task
-    const ancestry = getTaskAncestryArray(taskElement);
-    const fromIdx = ancestry[0];
+    const ancestry = taskElement ? getTaskAncestryArray(taskElement) : null;
+    const fromIdx = ancestry ? ancestry[0] : null;
     e.dataTransfer.setData(
       "application/json",
-      JSON.stringify({ ancestry, fromIdx })
+      JSON.stringify({ ancestry, fromIdx, sourceToDoIdx })
     );
-    taskElement.classList.add("dragging");
+    taskElement?.classList?.add("dragging");
+    console.log(
+      `Dragging task with ancestry: ${ancestry}, from index: ${fromIdx}, sourceToDoIdx: ${sourceToDoIdx}`
+    );
   });
 
   tasksSection.addEventListener("dragend", (e) => {
-    const taskElement = e.target.closest(".task");
+    const taskElement =
+      e.target.closest(".task") || e.target.closest(".list-container");
     if (taskElement) {
       taskElement.classList.remove("dragging");
       tasksSection
@@ -847,7 +1063,8 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
   });
 
   tasksSection.addEventListener("dragover", (e) => {
-    const taskElement = e.target.closest(".task");
+    const taskElement =
+      e.target.closest(".task") || e.target.closest(".list-container");
     if (!taskElement) return;
     e.preventDefault();
     taskElement.classList.add("drag-over");
@@ -864,34 +1081,64 @@ function Main(toDo, _selected = null, sortBy = "Date Created") {
       return;
     }
     const targetTask = e.target.closest(".task");
-    if (!targetTask) return;
+    const containerButton = starredMode
+      ? e.target.closest(".list-container")
+      : null;
+
+    if (starredMode && !containerButton) return;
+    if (!starredMode && !targetTask) return;
+
     e.preventDefault();
-    targetTask.classList.remove("drag-over");
+    targetTask?.classList?.remove("drag-over");
+
+    const destToDoIdx = containerButton
+      ? Number(containerButton.dataset.id)
+      : selected;
 
     const data = e.dataTransfer.getData("application/json");
     if (!data) return;
-    const { ancestry, fromIdx } = JSON.parse(data);
-    const toIdx = Number(targetTask.dataset.id);
+    const { ancestry, fromIdx, sourceToDoIdx } = JSON.parse(data);
+    const toIdx = targetTask ? Number(targetTask.dataset.id) : null;
 
     // Only allow drop if ancestry matches (i.e., same parent array) and not dropping on itself
-    const targetAncestry = getTaskAncestryArray(targetTask);
+    const targetAncestry = targetTask ? getTaskAncestryArray(targetTask) : null;
     console.log("Target Ancestry Array:", targetAncestry);
     console.log("From Index:", fromIdx, "To Index:", toIdx);
     console.log("Ancestry:", ancestry);
+    console.log(
+      `Source ToDo Index: ${sourceToDoIdx}, Destination ToDo Index: ${destToDoIdx}`
+    );
+    const idx = starredMode ? sourceToDoIdx : selected;
     if (
+      (!starredMode || (ancestry !== null && null !== targetAncestry)) &&
       JSON.stringify(ancestry.slice(1)) ===
         JSON.stringify(targetAncestry.slice(1)) &&
       fromIdx !== toIdx
     ) {
       // Find the parent array
-      let parent = toDo.getList(selected, ancestry);
+      let parent = toDo.getList(idx, ancestry);
       if (fromIdx !== -1 && toIdx !== -1) {
-        updateOrderArray(parent.subtasks, fromIdx, toIdx);
+        if (starredMode) {
+          updateStarOrderArray(parent.subtasks, fromIdx, toIdx); //note: idx is of userorder one not star
+        } else {
+          updateOrderArray(parent.subtasks, fromIdx, toIdx);
+        }
         renderTasks();
       }
+    } else if (
+      starredMode &&
+      ancestry === targetAncestry &&
+      ancestry === null &&
+      sourceToDoIdx !== destToDoIdx
+    ) {
+      updateStarOrderArray(toDo.toDos, sourceToDoIdx, destToDoIdx);
+      renderTasks();
+      // 1) both ancestory null : top level swap
+      // cases: 1) both diff val :invalid
+      // both same: same as above
     }
   });
-  renderMain(_selected); // Initial render of main content
+  renderMain(_selected, _starredMode); // Initial render of main content
   //send renderMain to Header
   return {
     renderMain,
@@ -904,20 +1151,21 @@ function Page() {
   const selected = JSON.parse(localStorage.getItem("selectedListID")) || null;
   const sortByMain = localStorage.getItem("sortByMain") || "Date Created";
   const sortByHeader = localStorage.getItem("sortByHeader") || "Date Created";
+  const starred = JSON.parse(localStorage.getItem("starred")) || false;
   console.log(`loaded things:
-    selected: ${selected}, sortByMain: ${sortByMain}, sortByHeader: ${sortByHeader}`);
+    selected: ${selected}, sortByMain: ${sortByMain}, sortByHeader: ${sortByHeader}, starred: ${starred}`);
   const allLists = toDo(todos_data);
 
-  const { renderMain } = Main(allLists, selected, sortByMain);
+  const { renderMain } = Main(allLists, selected, sortByMain, starred);
 
   saveAllLists = () => {
     localStorage.setItem("toDos", JSON.stringify(allLists.toDos));
   };
 
-  Header(allLists, renderMain, selected, sortByHeader);
+  Header(allLists, renderMain, selected, sortByHeader, starred);
 }
 Page();
 
 //left: starred page
-// perhaps use localstorage
 //take priority as input and update for list . not done as kinda wierd to see. perhaps if i move it to left side instead of header.
+//asceding and descing buttons
