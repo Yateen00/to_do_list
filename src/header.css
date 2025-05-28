@@ -233,3 +233,54 @@ nav .remove-list {
 nav .rename-list {
   border: 1.5px solid #04aa6d;
 }
+/* For mobile */
+@media (max-width: 600px) {
+  nav ul {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two columns for the first row */
+    grid-template-rows: auto auto auto; /* Three rows */
+     /* Add spacing between rows and columns */
+    row-gap: 0.5em; /* Space between columns */
+    
+  }
+  nav .sort-select{
+    margin-left: 0;
+  }
+  /* Row 1: li1 and li2 */
+  nav ul li:first-child {
+    grid-column: 1; /* Place in the first column */
+    grid-row: 1; /* Place in the first row */
+    display: flex;
+    margin-right: 0;
+    justify-content: flex-start; /* Align content to the right */
+    align-items: center; /* Vertically center content */
+  }
+
+  nav ul li:nth-child(3) {
+    grid-column: 2; /* Place in the second column */
+    grid-row: 1; /* Place in the first row */
+    display: flex;
+    justify-content: flex-end; /* Align content to the left */
+    align-items: center; /* Vertically center content */
+  }
+
+  /* Row 2: li3 */
+  nav ul li:nth-child(2) {
+    grid-column: 1 / span 2; /* Span both columns */
+    grid-row: 2; /* Place in the second row */
+    display: flex;
+    justify-content: center; /* Center content horizontally */
+    align-items: center; /* Center content vertically */
+    width: 100%; /* Take full width */
+  }
+
+  /* Row 3: li4 */
+  nav ul li:nth-child(4) {
+    grid-column: 1 / span 2; /* Span both columns */
+    grid-row: 3; /* Place in the third row */
+    display: flex;
+    justify-content: center; /* Center content horizontally */
+    align-items: center; /* Center content vertically */
+    width: 100%; /* Take full width */
+  }
+}

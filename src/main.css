@@ -56,6 +56,10 @@ main .sort-select option {
   padding: 0.5em 1em;
 }
 
+main .sort-select,
+main .sort-toggle {
+  flex: 0 0 auto; /* Prevent them from growing */
+}
 main .sort-toggle {
   background: #04aa6d;
   color: #fff;
@@ -87,6 +91,8 @@ main .sort-toggle:hover {
   font-weight: 500;
   transition: background 0.2s, box-shadow 0.2s;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  margin-left: auto; /* Push the button to the far right */
+  flex: 0 0 auto;
 }
 .add-task:hover {
   background: #037a4a;
@@ -197,8 +203,8 @@ main .sort-toggle:hover {
     padding: 0.7em 0.7em 0.7em 1em;
   }
   .task-controls-bar {
-    flex-direction: column;
-    gap: 0.1em;
+    flex-direction: row;
+    align-items:flex-start; /* Align items to the start */
   }
   .task-title {
     font-size: 1.1em;
@@ -207,6 +213,7 @@ main .sort-toggle:hover {
     font-size: 0.98em;
   }
   .task-actions {
+
     gap: 0.7em;
   }
   .toggle-completed,
