@@ -13,7 +13,8 @@ main {
 .task-title {
   font-size: 1.3em;
   font-weight: 700;
-  margin: 0 0 0.5em 0;
+  margin: 0 ;
+   padding-right: 8em;
   color: #222;
   letter-spacing: 0.5px;
 }
@@ -28,7 +29,7 @@ main {
 .task-controls-bar {
   display: flex;
   align-items: center;
-  gap: 1em;
+  gap: 0.2em;
   margin-bottom: 1.5em;
 }
 
@@ -53,6 +54,26 @@ main .sort-select option {
   color: #222;
   font-size: 1em;
   padding: 0.5em 1em;
+}
+
+main .sort-toggle {
+  background: #04aa6d;
+  color: #fff;
+  border: 1.5px solid #04aa6d;
+  border-radius: 5px;
+  padding: 0.4em 1em;
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  box-sizing: border-box;
+}
+
+main .sort-toggle:hover {
+  background: #037a4a;
+  border-color: #037a4a;
+  box-shadow: 0 0 6px rgba(3, 122, 74, 0.5);
 }
 
 .add-task {
@@ -84,8 +105,7 @@ main .sort-select option {
   border-left: 5px solid #04aa6d;
   position: relative;
   transition: box-shadow 0.2s, border-color 0.2s;
-  word-break: break-word;
-  overflow-wrap: break-word;
+
 }
 .task:hover {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.09);
@@ -107,8 +127,8 @@ main .sort-select option {
 
 .task-controls {
   position: absolute;
-  top: 0.7em;
-  right: 1em;
+  top: 0;
+  right: 0;
   display: flex;
   gap: 0.3em;
 }
@@ -178,7 +198,7 @@ main .sort-select option {
   }
   .task-controls-bar {
     flex-direction: column;
-    gap: 0.5em;
+    gap: 0.1em;
   }
   .task-title {
     font-size: 1.1em;
@@ -229,4 +249,26 @@ main .sort-select option {
   display: flex;
   gap: 1.2em; /* Space between tick and star */
   margin-top: 1em;
+}
+
+.list-title , .task-note, .task-title, .task-container, .list-name{
+  word-wrap: break-word; /* Ensure text wraps */
+  overflow-wrap: break-word; /* Modern equivalent */
+  white-space: normal; 
+  word-break: break-word;
+}
+.task-note-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.3em;
+  white-space: nowrap; /* Prevent 'Note:' label from wrapping */
+}
+
+.task-note {
+  white-space: normal;     /* Allow wrapping of the content */
+  flex: 1; /* Allow it to take remaining space */
+}
+.task-header {
+  position: relative;
+  min-height: 2.5em; /* Enough height for buttons */
 }

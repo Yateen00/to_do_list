@@ -351,7 +351,8 @@ function Header(
   onListSelect,
   _selected = null,
   sortBy = "Date Created",
-  _starred = false
+  _starred = false,
+  ascending = true
 ) {
   let starred = false;
   let selected = null;
@@ -371,6 +372,7 @@ function Header(
             <option>Due Date</option>
             <option>Custom</option>
           </select>
+          <button class="sort-toggle" title="Toggle Ascending/Descending">⬆️</button>
         </li>
         <li class="list-controls">
         <button class="rename-list">Rename List</button>
@@ -389,10 +391,11 @@ function Header(
   let selectedNode = selected !== null ? toDo.getList(selected) : null;
   nav.querySelector("select").value = sortBy; // Set initial sort value
   // for localstorage
-  function update() {
+  function save() {
     console.log(
       `Updating localStorage with selected: ${selected} and sortBy: ${sortDropdown.value}`
     );
+    localStorage.setItem("ascendingHeader", ascending);
     localStorage.setItem("selectedListID", selected);
     localStorage.setItem("sortByHeader", sortDropdown.value);
     localStorage.setItem("starred", starred);
@@ -430,7 +433,7 @@ function Header(
       if (starred !== star) {
         starred = true;
         onListSelect(selected, starred);
-        update();
+        save();
       }
       return;
     }
@@ -479,18 +482,18 @@ function Header(
     }
     if (prevSelectedNode !== selectedNode) {
       onListSelect(selected); //null needed as if last list was removed, buttons will both be null, but update was made
-      update(); // Update localStorage with the new selected list ID and sort option
+      save(); // Update localStorage with the new selected list ID and sort option
     }
   }
   function renderLists(new_selected = null, star = false) {
     const sort_by = sortSelect.value;
     listsContainer.innerHTML = "";
-    const arr = sortBasedOn(toDo.toDos, sortKeyMap[sort_by], false);
+    const arr = sortBasedOn(toDo.toDos, sortKeyMap[sort_by], false, ascending);
     arr.forEach((list) => {
       listsContainer.appendChild(createListButton(list.name, list.userOrder));
     });
     updateHighlight(new_selected, star);
-    update(); // Update localStorage with the new list order
+    save(); // Update localStorage with the new list order
   }
 
   /*Header listeners */
@@ -508,6 +511,18 @@ function Header(
   const sortSelect = nav.querySelector(".sort-select");
   sortSelect.onchange = () => {
     renderLists(selected, starred);
+  };
+
+  // Toggle sort order button
+  const sortToggleButton = nav.querySelector(".sort-toggle");
+  sortToggleButton.textContent = ascending ? "⬆️" : "⬇️";
+  sortToggleButton.onclick = () => {
+    ascending = !ascending;
+    sortToggleButton.textContent = ascending ? "⬆️" : "⬇️";
+    console.log(
+      `Sorting order changed to: ${ascending ? "Ascending" : "Descending"}`
+    );
+    renderLists(selected, starred); // Re-render lists with the new sort order
   };
 
   // Handle Add, Rename, Remove List
@@ -618,7 +633,8 @@ function Main(
   toDo,
   _selected = null,
   sortBy = "Date Created",
-  _starredMode = false
+  _starredMode = false,
+  ascending = true
 ) {
   let selected = null; //not using directly as leads to visual bugs coz reloading only happen on change
   let starredMode = false;
@@ -639,6 +655,8 @@ function Main(
           <option>Priority</option>
           <option>Custom</option>
         </select>
+        <button class="sort-toggle" title="Toggle Ascending/Descending">⬆️</button>
+        
         <button class="add-task">Add Task</button>
       </div>
       <section class="tasks-section"></section>
@@ -678,8 +696,9 @@ function Main(
     (modal.style.display = "none");
 
   //save to locastorage
-  function update() {
+  function save() {
     localStorage.setItem("selectedListID", selected);
+    localStorage.setItem("ascendingMain", ascending);
     localStorage.setItem("sortByMain", sortSelect.value);
     localStorage.setItem("starred", starredMode);
   }
@@ -693,12 +712,14 @@ function Main(
     taskElement.dataset.id = task.userOrder;
     taskElement.draggable = true; // Enable drag-and-drop for tasks
     taskElement.innerHTML = `
+           <div class="task-header">
             <div class="task-controls">
               <button class="add-subtask">＋</button>
               <button class="remove-task">🗑️</button>
               <button class="update-task">✏️</button>
             </div>
             <h3 class="task-title">${task.name}</h3>
+          </div>
             <div class="task-meta">
                 <p class="task-due">Due: <span>${
                   task.dueDate
@@ -769,7 +790,7 @@ function Main(
       });
     }
     if (!starredMode) {
-      list = sortBasedOn(list, sortKeyMap[sort_by], true);
+      list = sortBasedOn(list, sortKeyMap[sort_by], true, ascending);
 
       renderTasksRecursiveHelper(list, tasksSection);
     } else {
@@ -777,7 +798,12 @@ function Main(
 
       const transformedList = list.map((sublist) => ({
         ...sublist, // Keep all other properties of the top-level task
-        subtasks: sortBasedOn(sublist.subtasks, sortKeyMap[sort_by], true), // Sort the subtasks
+        subtasks: sortBasedOn(
+          sublist.subtasks,
+          sortKeyMap[sort_by],
+          true,
+          ascending
+        ), // Sort the subtasks
       }));
 
       console.log("Transformed list with sorted subtasks:", transformedList);
@@ -798,7 +824,8 @@ function Main(
       const sortedList = sortBasedOn(
         transformedList,
         sortKeyMap[sort_by],
-        false
+        false,
+        ascending
       );
 
       if (sort_by !== "Star") {
@@ -819,7 +846,7 @@ function Main(
         const listContainer = document.createElement("div");
         listContainer.className = "list-container";
         listContainer.dataset.id = lis.userOrder; // Use userOrder as the ID
-        listContainer.innerHTML = `<h2>${lis.name}</h2>
+        listContainer.innerHTML = `<h2 class="list-name">${lis.name}</h2>
           <button class="add-task">Add Task</button>
         `;
         listContainer.draggable = true; // Make the list container draggable
@@ -828,7 +855,7 @@ function Main(
         tasksSection.appendChild(listContainer);
       });
     }
-    update();
+    save();
   }
 
   //render both title and tasks
@@ -874,7 +901,7 @@ function Main(
       titleElement.dataset.id = list.userOrder; // Use userOrder as the ID
       renderTasks();
     }
-    update();
+    save();
   }
 
   //form for task add, update
@@ -918,6 +945,17 @@ function Main(
   const sortSelect = main.querySelector(".sort-select");
   sortSelect.value = sortBy; // Set initial sort value
   sortSelect.onchange = () => {
+    renderTasks();
+  };
+  // Toggle sort order button
+  const sortToggleButton = main.querySelector(".sort-toggle");
+  sortToggleButton.textContent = ascending ? "⬆️" : "⬇️";
+  sortToggleButton.onclick = () => {
+    ascending = !ascending;
+    sortToggleButton.textContent = ascending ? "⬆️" : "⬇️";
+    console.log(
+      `Sorting order changed to: ${ascending ? "Ascending" : "Descending"}`
+    );
     renderTasks();
   };
 
@@ -1150,19 +1188,35 @@ function Page() {
   const todos_data = JSON.parse(localStorage.getItem("toDos")) || [];
   const selected = JSON.parse(localStorage.getItem("selectedListID")) || null;
   const sortByMain = localStorage.getItem("sortByMain") || "Date Created";
+  const ascendingMain = localStorage.getItem("ascendingMain") === "true";
+
   const sortByHeader = localStorage.getItem("sortByHeader") || "Date Created";
+  const ascendingHeader = localStorage.getItem("ascendingHeader") === "true";
   const starred = JSON.parse(localStorage.getItem("starred")) || false;
   console.log(`loaded things:
     selected: ${selected}, sortByMain: ${sortByMain}, sortByHeader: ${sortByHeader}, starred: ${starred}`);
   const allLists = toDo(todos_data);
 
-  const { renderMain } = Main(allLists, selected, sortByMain, starred);
+  const { renderMain } = Main(
+    allLists,
+    selected,
+    sortByMain,
+    starred,
+    ascendingMain
+  );
 
   saveAllLists = () => {
     localStorage.setItem("toDos", JSON.stringify(allLists.toDos));
   };
 
-  Header(allLists, renderMain, selected, sortByHeader, starred);
+  Header(
+    allLists,
+    renderMain,
+    selected,
+    sortByHeader,
+    starred,
+    ascendingHeader
+  );
 }
 Page();
 
